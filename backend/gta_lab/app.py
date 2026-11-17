@@ -14,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import APP_NAME, __version__
 from .config import Settings, load_settings, looks_cloud_synced
+from .db.health import read_health
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 CSP = (
@@ -21,6 +22,24 @@ CSP = (
     "connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; "
     "form-action 'self'; frame-ancestors 'none'"
 )
+
+
+class DataHealth(BaseModel):
+    """Summarised counts only. Never rows, titles or IDs."""
+
+    schema_version: int
+    state: Literal["ready", "not migrated", "unreadable"]
+    dataset: Literal["synthetic", "live"] | None = None
+    videos_fresh: int | None = None
+    videos_due_for_refresh: int | None = None
+    videos_inaccessible: int | None = None
+    videos_last_refresh_api_error: int | None = None
+    videos_expired_awaiting_purge: int | None = None
+    editor_notes: int | None = None
+    briefs: int | None = None
+    plans: int | None = None
+    discovery_runs: int | None = None
+    capabilities_on: int | None = None
 
 
 class StatusResponse(BaseModel):
@@ -33,6 +52,7 @@ class StatusResponse(BaseModel):
     youtube_api_key: Literal["configured", "not configured"]
     youtube_requests: Literal["disabled"]
     database: Literal["not yet created", "present"]
+    data_health: DataHealth | None
     data_dir: str
     data_dir_cloud_synced: bool
     ui_build: Literal["present", "not built"]
@@ -86,6 +106,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/api/status", response_model=StatusResponse)
     def status() -> StatusResponse:
         dist = settings.resolved_frontend_dist()
+        health = read_health(settings.active_db_path)
         return StatusResponse(
             app=APP_NAME,
             version=__version__,
@@ -94,6 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             youtube_api_key="configured" if settings.youtube_key_configured else "not configured",
             youtube_requests="disabled",
             database="present" if settings.active_db_path.is_file() else "not yet created",
+            data_health=DataHealth(**health) if health is not None else None,
             data_dir=str(settings.data_dir),
             data_dir_cloud_synced=looks_cloud_synced(settings.data_dir),
             ui_build="present" if (dist / "index.html").is_file() else "not built",

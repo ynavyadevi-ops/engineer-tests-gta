@@ -10,7 +10,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from . import __version__
-from .config import default_env_file, load_settings, looks_cloud_synced
+from .config import Settings, default_env_file, load_settings, looks_cloud_synced
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -25,7 +25,44 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--reload", action="store_true", help="dev auto-reload (backend only)")
 
     sub.add_parser("config", help="print effective non-secret settings as JSON")
+
+    db = sub.add_parser("db", help="local database maintenance (migrate, status, purge)")
+    db.add_argument("action", choices=["migrate", "status", "purge"])
+    db.add_argument("--mode", choices=["demo", "live"], help="overrides GTA_LAB_MODE")
+    db.add_argument("--data-dir", type=Path, help="overrides GTA_LAB_DATA_DIR")
     return parser
+
+
+def _db_command(action: str, settings: Settings) -> int:
+    from .db import open_for_settings, purge_expired
+    from .db.health import read_health
+
+    path = settings.active_db_path
+    if action == "status":
+        print(json.dumps({"db_path": str(path), "health": read_health(path)}, indent=2))
+        return 0
+    try:
+        db = open_for_settings(settings)
+    except Exception as exc:  # report and exit nonzero; never a traceback with data
+        print(f"db error: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    with db:
+        if action == "migrate":
+            print(
+                json.dumps(
+                    {
+                        "db_path": str(path),
+                        "dataset": db.dataset,
+                        "applied": list(db.migration.applied),
+                        "schema_version": db.schema_version(),
+                    },
+                    indent=2,
+                )
+            )
+        else:  # purge
+            report = purge_expired(db).as_dict()
+            print(json.dumps({"db_path": str(path), "purged": report}, indent=2))
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,6 +83,9 @@ def main(argv: list[str] | None = None) -> int:
             field = ".".join(str(p) for p in err["loc"])
             print(f"config error: {field}: {err['msg']}", file=sys.stderr)
         return 2
+
+    if args.command == "db":
+        return _db_command(args.action, settings)
 
     if args.command == "config":
         print(

@@ -20,3 +20,12 @@ Each entry: phase ID, date, changed files, test evidence, blocker or deferral. R
 - **Evidence:** `scripts\check.ps1` 11/11 passed, exit 0 (uv lock check, ruff lint and format, pytest 32 passed, tsc, vitest 8 passed, sentinel build plus bundle scan, keyless real-server start, sentinel real-server no-leak, npm audit 0 vulns, pip-audit no known vulns). `bootstrap.ps1 -Clean` exit 0 with lockfile hashes unchanged. Nonzero exits confirmed for a bad host and a missing tool. Dev proxy and packaged same-origin runs checked by hand.
 - **Not run:** `scripts\dev.ps1` as a single wrapper (interactive); its components were run directly.
 - **Blockers:** none. Nothing committed.
+
+## Phase 02 — 2026-11-17
+
+- **Changed files (created):** `migrations/0001_foundation.sql`, `0002_youtube_sources.sql`, `0003_sample_selection.sql`, `0004_editorial.sql`; `backend/gta_lab/clock.py`; `backend/gta_lab/db/{__init__,connection,migrate,sources,runs,editorial,planning,retention,health}.py`; `tests/{db_support,test_db_migrations,test_db_isolation,test_db_lifecycle,test_db_semantics,test_db_app}.py`.
+- **Changed files (edited):** `backend/gta_lab/app.py` (`/api/status` gains a read-only `data_health` count block), `backend/gta_lab/__main__.py` (`db migrate|status|purge`), `docs/DATA_CONTRACT.md` (field definitions, runner rules, lifecycle), `STATUS.md`.
+- **Decisions inside the phase:** STRICT tables with UTC text timestamps. The 30-day cap is enforced in SQL `CHECK`s as well as in code. Fixture IDs must contain `:`. The DB is bound to its dataset on first open. The live DB is refused in cloud-synced folders. Inaccessible videos are kept as metadata-free tombstones until their original expiry. Failed refreshes never extend expiry. Lapsed rows are purged before being rewritten. Purge redacts the current title, channel title and ID from linked notes and briefs. Writing copied titles into notes is refused. Added the supporting tables `plans`, `note_source_refs`, `brief_source_refs` and `db_meta`. The gated history table is not created.
+- **Evidence:** pytest 91 passed (59 new). Two mutation checks (expiry read filter removed; API error bumps fetch time) were each caught by the tests, then reverted. `scripts\check.ps1` 11/11 passed, exit 0.
+- **Not run:** concurrent multi-process writers; real YouTube responses (Phase 03).
+- **Blockers:** none for Phase 03's fixture work. `YOUTUBE_KEY` is still needed for its live smoke test. Nothing committed.

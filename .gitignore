@@ -1,0 +1,63 @@
+# --- Local data (never commit real YouTube data or databases) ---
+local-data/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*-wal
+*-shm
+exports/
+backups/
+
+# --- Secrets and private config ---
+.env
+.env.*
+!.env.example
+*.local.toml
+*.local.json
+*.local.yaml
+config.local.*
+secrets/
+*.pem
+*.key
+
+# --- Python / uv ---
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- Node / Vite / Playwright ---
+node_modules/
+frontend/dist/
+dist/
+build/
+.vite/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# --- Deployment tooling (Phase 14) ---
+.vercel/
+
+# --- Logs and scan scratch output ---
+*.log
+logs/
+
+# --- Agent / editor local state ---
+.claude/settings.local.json
+.vscode/
+.idea/
+
+# --- OS ---
+Thumbs.db
+desktop.ini
+.DS_Store

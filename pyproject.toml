@@ -1,0 +1,52 @@
+[project]
+name = "gta-lab"
+version = "0.1.0"
+description = "Engineer Tests GTA: local-first creator research and planning tool (local MVP)."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Proprietary" }
+dependencies = [
+    "fastapi>=0.162,<0.164",
+    "uvicorn>=0.50,<0.55",
+    "pydantic-settings>=2.12,<3",
+]
+
+[project.scripts]
+gta-lab = "gta_lab.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0,<10",
+    "httpx>=0.28,<0.29",
+    "ruff>=0.16,<0.18",
+    "pip-audit>=2.9,<4",
+]
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "gta_lab"
+module-root = "backend"
+
+[tool.uv]
+# Supply-chain guard: only resolve releases at least ~7 days old at lock time.
+# Move this date forward deliberately when upgrading (see docs/SYSTEM_DESIGN.md).
+exclude-newer = "2026-11-10T00:00:00Z"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["backend", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S104", "S105", "S106"]

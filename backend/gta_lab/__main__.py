@@ -30,7 +30,37 @@ def _build_parser() -> argparse.ArgumentParser:
     db.add_argument("action", choices=["migrate", "status", "purge"])
     db.add_argument("--mode", choices=["demo", "live"], help="overrides GTA_LAB_MODE")
     db.add_argument("--data-dir", type=Path, help="overrides GTA_LAB_DATA_DIR")
+    yt = sub.add_parser("youtube", help="read-only YouTube Data API checks")
+    yt.add_argument("action", choices=["smoke"])
+    yt.add_argument("--max-videos", type=int, default=10, help="5..15 (default 10)")
+    yt.add_argument("--query", default=None, help="curated search query (default built-in)")
+    yt.add_argument("--dry-run", action="store_true", help="print the quota estimate; send nothing")
     return parser
+
+
+def _youtube_command(args: argparse.Namespace, settings: Settings) -> int:
+    from .youtube.smoke import DEFAULT_SMOKE_QUERY, run_smoke_safely, smoke_plan
+
+    try:
+        plan = smoke_plan(args.max_videos)
+    except ValueError as exc:
+        print(f"youtube error: {exc}", file=sys.stderr)
+        return 2
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, **plan}, indent=2))
+        return 0
+    if settings.youtube_api_key is None:
+        print(
+            json.dumps({"blocked": "YOUTUBE_API_KEY not configured", **plan}, indent=2),
+        )
+        return 3
+    code, report = run_smoke_safely(
+        settings.youtube_api_key.get_secret_value(),
+        args.max_videos,
+        args.query or DEFAULT_SMOKE_QUERY,
+    )
+    print(json.dumps({"estimate": plan["estimate"], **report}, indent=2))
+    return code
 
 
 def _db_command(action: str, settings: Settings) -> int:
@@ -86,6 +116,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "db":
         return _db_command(args.action, settings)
+
+    if args.command == "youtube":
+        return _youtube_command(args, settings)
 
     if args.command == "config":
         print(

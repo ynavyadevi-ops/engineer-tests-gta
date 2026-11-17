@@ -29,3 +29,26 @@ Each entry: phase ID, date, changed files, test evidence, blocker or deferral. R
 - **Evidence:** pytest 91 passed (59 new). Two mutation checks (expiry read filter removed; API error bumps fetch time) were each caught by the tests, then reverted. `scripts\check.ps1` 11/11 passed, exit 0.
 - **Not run:** concurrent multi-process writers; real YouTube responses (Phase 03).
 - **Blockers:** none for Phase 03's fixture work. `YOUTUBE_KEY` is still needed for its live smoke test. Nothing committed.
+
+## Phase 03 — 2026-11-17
+
+- **Changed files (created):** `backend/gta_lab/youtube/{__init__,errors,ids,quota,transport,parse,client,smoke}.py`; `tests/{youtube_fakes,test_youtube_ids,test_youtube_client,test_youtube_secrets}.py`.
+- **Changed files (edited):** `backend/gta_lab/__main__.py` (`youtube smoke [--max-videos 5-15] [--query] [--dry-run]`), `docs/YOUTUBE_POLICY.md` (verified URLs, quota table and adapter behaviour), `STATUS.md`.
+- **Decisions inside the phase:**
+  - The transport is stdlib `urllib`, so there is no new dependency. It is pinned to `https://www.googleapis.com/youtube/v3/`, refuses redirects and caps bodies at 2 MB.
+  - The key is sent as the `key` query parameter only at send time. It is never put in exceptions, logs or reprs.
+  - Descriptions are not requested: nothing needs them and the DB has no column for them.
+  - Search returns IDs only; records come from `videos.list` hydration.
+  - Every attempt is charged to a per-bucket ledger before sending.
+  - The smoke check prints counts only and writes no DB.
+- **Verified (official docs, 2026-11-17):**
+  - `search.list` has its own bucket: 1 per call, default 100 calls/day.
+  - `videos.list`, `channels.list` and `playlistItems.list` cost 1 unit each out of 10,000 units/day.
+  - Reset is at midnight PT, and invalid requests cost ≥1.
+  - `maxResults` is not combinable with `id` on `videos.list`.
+- **Evidence:** pytest 217 passed (126 new, all mocked). Two mutation checks (keyed URL added to a log line; 403 made retryable) were each caught, then reverted. `scripts\check.ps1` 11/11 passed, exit 0.
+- **Blocked:**
+  - The live smoke check of 5–15 videos: `YOUTUBE_API_KEY` is not configured. `youtube smoke` printed `blocked` and exited 3.
+  - Console quota verification: there is no Cloud project.
+- **Not run:** live confirmation of the error-reason mapping that is not on the official error page (invalid key, `accessNotConfigured`, rate limits).
+- **Nothing committed.**
